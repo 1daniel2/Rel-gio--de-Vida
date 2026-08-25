@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#080D14">
+<title>Relógio de Vida</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #080D14;
+    color: #EAF7FF;
+    font-family: Arial, sans-serif;
+    min-height: 100vh;
+}
+
+main {
+    max-width: 620px;
+    margin: auto;
+    padding: 28px 20px 40px;
+    text-align: center;
+}
+
+h1 {
+    font-size: 32px;
+    color: #38D9FF;
+    margin: 8px 0 4px;
+}
+
+.subtitle {
+    color: #7890A3;
+    margin-bottom: 25px;
+    font-size: 16px;
+}
+
+.controls {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+
+input {
+    width: 170px;
+    padding: 14px;
+    font-size: 17px;
+    text-align: center;
+    color: #EAF7FF;
+    background: #101923;
+    border: 1px solid #1A2A38;
+    border-radius: 10px;
+}
+
+button {
+    padding: 14px 20px;
+    border: none;
+    border-radius: 10px;
+    background: #38D9FF;
+    color: #080D14;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.status {
+    color: #7890A3;
+    font-size: 12px;
+    margin-top: 15px;
+}
+
+.main-card {
+    background: #101923;
+    border: 1px solid #1A2A38;
+    border-radius: 18px;
+    padding: 28px 10px;
+    margin: 25px 0;
+}
+
+.days {
+    font-family: monospace;
+    font-size: 50px;
+    font-weight: bold;
+    word-break: break-all;
+}
+
+.cyan {
+    color: #38D9FF;
+    font-weight: bold;
+    margin-top: 5px;
+}
+
+.cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 9px;
+}
+
+.card {
+    background: #101923;
+    border: 1px solid #1A2A38;
+    border-radius: 16px;
+    padding: 18px 5px;
+}
+
+.number {
+    font-family: monospace;
+    font-size: 20px;
+    font-weight: bold;
+    word-break: break-all;
+}
+
+.label {
+    color: #7890A3;
+    font-size: 10px;
+    margin-top: 7px;
+}
+
+.age {
+    color: #65FFB0;
+    font-size: 17px;
+    font-weight: bold;
+    margin: 25px 0;
+}
+</style>
+</head>
+
+<body>
+
+<main>
+
+<h1>RELÓGIO DE VIDA</h1>
+
+<div class="subtitle">
+    Cada segundo conta.
+</div>
+
+<div class="controls">
+
+<input
+    id="birth"
+    value="01/08/1991"
+    placeholder="DD/MM/AAAA"
+    inputmode="numeric">
+
+<button onclick="iniciar()">
+    INICIAR
+</button>
+
+</div>
+
+<div id="status" class="status">
+    Formato: DD/MM/AAAA
+</div>
+
+<div class="main-card">
+
+<div id="days" class="days">
+    0
+</div>
+
+<div class="cyan">
+    DIAS DE VIDA
+</div>
+
+</div>
+
+<div class="cards">
+
+<div class="card">
+    <div id="hours" class="number">0</div>
+    <div class="label">HORAS</div>
+</div>
+
+<div class="card">
+    <div id="minutes" class="number">0</div>
+    <div class="label">MINUTOS</div>
+</div>
+
+<div class="card">
+    <div id="seconds" class="number">0</div>
+    <div class="label">SEGUNDOS</div>
+</div>
+
+</div>
+
+<div id="age" class="age">
+    IDADE —
+</div>
+
+</main>
+
+<script>
+
+let nascimento = null;
+
+function converterData(texto) {
+
+    const partes = texto.trim().split("/");
+
+    if (partes.length !== 3) {
+        return null;
+    }
+
+    const dia = Number(partes[0]);
+    const mes = Number(partes[1]) - 1;
+    const ano = Number(partes[2]);
+
+    const data = new Date(ano, mes, dia);
+
+    if (
+        data.getDate() !== dia ||
+        data.getMonth() !== mes ||
+        data.getFullYear() !== ano
+    ) {
+        return null;
+    }
+
+    return data;
+}
+
+function formatar(numero) {
+
+    return numero.toLocaleString("pt-BR");
+
+}
+
+function iniciar() {
+
+    const texto = document.getElementById("birth").value;
+
+    const data = converterData(texto);
+
+    if (!data || data > new Date()) {
+
+        document.getElementById("status").textContent =
+            "Data inválida.";
+
+        return;
+    }
+
+    nascimento = data;
+
+    localStorage.setItem("nascimento", texto);
+
+    document.getElementById("status").textContent =
+        "Relógio iniciado • o tempo está correndo.";
+
+    atualizar();
+
+}
+
+function atualizar() {
+
+    if (!nascimento) {
+        return;
+    }
+
+    const agora = new Date();
+
+    const segundosTotais =
+        Math.floor(
+            (agora.getTime() - nascimento.getTime()) / 1000
+        );
+
+    const dias =
+        Math.floor(segundosTotais / 86400);
+
+    const horas =
+        Math.floor(segundosTotais / 3600);
+
+    const minutos =
+        Math.floor(segundosTotais / 60);
+
+    document.getElementById("days").textContent =
+        formatar(dias);
+
+    document.getElementById("hours").textContent =
+        formatar(horas);
+
+    document.getElementById("minutes").textContent =
+        formatar(minutos);
+
+    document.getElementById("seconds").textContent =
+        formatar(segundosTotais);
+
+
+    let idade =
+        agora.getFullYear() -
+        nascimento.getFullYear();
+
+    let aniversario =
+        new Date(
+            agora.getFullYear(),
+            nascimento.getMonth(),
+            nascimento.getDate()
+        );
+
+    if (agora < aniversario) {
+
+        idade--;
+
+        aniversario =
+            new Date(
+                agora.getFullYear() - 1,
+                nascimento.getMonth(),
+                nascimento.getDate()
+            );
+
+    }
+
+    const diasDepoisDoAniversario =
+        Math.floor(
+            (agora - aniversario) / 86400000
+        );
+
+    document.getElementById("age").textContent =
+        "IDADE " +
+        idade +
+        " anos e " +
+        diasDepoisDoAniversario +
+        " dias";
+
+}
+
+const salvo =
+    localStorage.getItem("nascimento");
+
+if (salvo) {
+
+    document.getElementById("birth").value = salvo;
+
+    nascimento = converterData(salvo);
+
+}
+
+setInterval(atualizar, 1000);
+
+atualizar();
+
+</script>
+
+</body>
+</html>
