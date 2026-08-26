@@ -1,0 +1,131 @@
+name: Criar APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Criar projeto
+      run: |
+        mkdir -p app/src/main/java/com/vida/relogio
+        mkdir -p app/src/main/res/xml
+        mkdir -p app/src/main/res/layout
+
+        cat > settings.gradle <<'EOF'
+        pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+        dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories{google();mavenCentral()} }
+        rootProject.name='RelogioVida'
+        include ':app'
+        EOF
+
+        cat > build.gradle <<'EOF'
+        plugins {
+          id 'com.android.application' version '8.7.3' apply false
+        }
+        EOF
+
+        cat > app/build.gradle <<'EOF'
+        plugins { id 'com.android.application' }
+
+        android {
+          namespace 'com.vida.relogio'
+          compileSdk 35
+
+          defaultConfig {
+            applicationId 'com.vida.relogio'
+            minSdk 23
+            targetSdk 35
+            versionCode 1
+            versionName '1.0'
+          }
+        }
+        EOF
+
+        cat > app/src/main/AndroidManifest.xml <<'EOF'
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+          <application android:theme="@style/AppTheme" android:label="Relógio de Vida">
+            <activity android:name=".MainActivity" android:exported="true">
+              <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+              </intent-filter>
+            </activity>
+            <receiver android:name=".VidaWidget" android:exported="true">
+              <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+              </intent-filter>
+              <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget"/>
+            </receiver>
+          </application>
+        </manifest>
+        EOF
+
+        mkdir -p app/src/main/res/values
+
+        cat > app/src/main/res/values/styles.xml <<'EOF'
+        <resources>
+          <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
+            <item name="android:fontFamily">sans</item>
+          </style>
+        </resources>
+        EOF
+
+        cat > app/src/main/res/layout/widget.xml <<'EOF'
+        <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+          android:layout_width="match_parent"
+          android:layout_height="match_parent"
+          android:gravity="center"
+          android:orientation="vertical"
+          android:background="#080D12">
+          <TextView android:id="@+id/idade" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#29C3EE" android:textSize="24sp"/>
+          <TextView android:id="@+id/dias" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:textSize="16sp"/>
+        </LinearLayout>
+        EOF
+
+        cat > app/src/main/res/xml/widget.xml <<'EOF'
+        <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+          android:minWidth="250dp"
+          android:minHeight="80dp"
+          android:updatePeriodMillis="60000"
+          android:initialLayout="@layout/widget"/>
+        EOF
+
+        cat > app/src/main/java/com/vida/relogio/MainActivity.java <<'EOF'
+        package com.vida.relogio;
+        import android.app.Activity;
+        import android.os.Bundle;
+        public class MainActivity extends Activity {
+          public void onCreate(Bundle b){super.onCreate(b);}
+        }
+        EOF
+
+        cat > app/src/main/java/com/vida/relogio/VidaWidget.java <<'EOF'
+        package com.vida.relogio;
+        import android.appwidget.*;
+        import android.content.*;
+        import android.widget.*;
+        public class VidaWidget extends AppWidgetProvider {
+          public void onUpdate(Context c, AppWidgetManager m, int[] ids){
+            for(int id:ids){
+              RemoteViews v=new RemoteViews(c.getPackageName(),R.layout.widget);
+              v.setTextViewText(R.id.idade,"RELÓGIO DE VIDA");
+              v.setTextViewText(R.id.dias,"Configure sua data no aplicativo");
+              m.updateAppWidget(id,v);
+            }
+          }
+        }
+        EOF
+
+    - name: Compilar
+      run: |
+        gradle assembleDebug
+
+    - name: Enviar APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: Relogio-de-Vida
+        path: app/build/outputs/apk/debug/app-debug.apk
