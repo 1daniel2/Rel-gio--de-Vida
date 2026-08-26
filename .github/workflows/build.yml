@@ -3,152 +3,98 @@ name: Criar APK
 
 on:
   workflow_dispatch:
+  push:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Baixar código
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Configurar Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Criar projeto Android
+      - name: Criar projeto
         run: |
-
           mkdir -p app/src/main/java/com/vida/relogio
-          mkdir -p app/src/main/res/layout
-          mkdir -p app/src/main/res/values
-          mkdir -p app/src/main/res/xml
 
           cat > settings.gradle <<'EOF'
-pluginManagement {
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
-
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
-rootProject.name = 'RelogioVida'
-include ':app'
-EOF
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          rootProject.name='RelogioVida'
+          include ':app'
+          EOF
 
           cat > build.gradle <<'EOF'
-plugins {
-    id 'com.android.application' version '8.7.3' apply false
-}
-EOF
+          plugins {
+              id 'com.android.application' version '8.7.3' apply false
+          }
+          EOF
 
           cat > app/build.gradle <<'EOF'
-plugins {
-    id 'com.android.application'
-}
+          plugins { id 'com.android.application' }
 
-android {
-    namespace 'com.vida.relogio'
-    compileSdk 35
+          android {
+              namespace 'com.vida.relogio'
+              compileSdk 35
 
-    defaultConfig {
-        applicationId 'com.vida.relogio'
-        minSdk 23
-        targetSdk 35
-        versionCode 1
-        versionName '1.0'
-    }
-}
-EOF
+              defaultConfig {
+                  applicationId 'com.vida.relogio'
+                  minSdk 23
+                  targetSdk 35
+                  versionCode 1
+                  versionName '1.0'
+              }
+          }
+          EOF
 
           cat > app/src/main/AndroidManifest.xml <<'EOF'
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application
+                  android:theme="@android:style/Theme.Material.NoActionBar"
+                  android:label="Relógio de Vida">
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
 
-    <application
-        android:theme="@style/AppTheme"
-        android:label="Relógio de Vida"
-        android:allowBackup="false"
-        android:supportsRtl="true">
+          cat > app/src/main/java/com/vida/relogio/MainActivity.java <<'EOF'
+          package com.vida.relogio;
 
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.graphics.Color;
+          import android.view.Gravity;
+          import android.widget.TextView;
 
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+          public class MainActivity extends Activity {
+              public void onCreate(Bundle b) {
+                  super.onCreate(b);
+                  TextView t = new TextView(this);
+                  t.setText("RELÓGIO DE VIDA\n\nData de nascimento");
+                  t.setTextColor(Color.WHITE);
+                  t.setTextSize(24);
+                  t.setGravity(Gravity.CENTER);
+                  t.setBackgroundColor(Color.rgb(8,13,18));
+                  setContentView(t);
+              }
+          }
+          EOF
 
-        </activity>
+      - name: Compilar
+        run: |
+          gradle assembleDebug
 
-        <receiver
-            android:name=".VidaWidget"
-            android:exported="true">
-
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget" />
-
-        </receiver>
-
-    </application>
-
-</manifest>
-EOF
-
-          cat > app/src/main/res/values/styles.xml <<'EOF'
-<resources>
-
-    <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
-        <item name="android:fontFamily">sans</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:statusBarColor">#080D12</item>
-        <item name="android:navigationBarColor">#080D12</item>
-        <item name="android:colorAccent">#00BCD4</item>
-    </style>
-
-</resources>
-EOF
-
-          cat > app/src/main/res/layout/activity_main.xml <<'EOF'
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:padding="24dp"
-    android:background="#080D12">
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="RELÓGIO DE VIDA"
-        android:textColor="#FFFFFF"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="30dp"/>
-
-    <TextView
-        android:id="@+id/tvData"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Data de nascimento"
-        android:textColor="#B0BEC5"
-        android:textSize="16sp"
-        android
+      - name: Enviar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Relogio-de-Vida
+          path: app/build/outputs/apk/debug/app-debug.apk
