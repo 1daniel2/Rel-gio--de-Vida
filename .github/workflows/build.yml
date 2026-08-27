@@ -24,6 +24,7 @@ jobs:
           mkdir -p app/src/main/res/values
           mkdir -p app/src/main/res/xml
           mkdir -p app/src/main/res/layout
+          mkdir -p app/src/main/res/drawable
 
           cat > settings.gradle <<'EOF'
           pluginManagement {
@@ -63,15 +64,14 @@ jobs:
               applicationId 'com.vida.relogio'
               minSdk 23
               targetSdk 35
-              versionCode 2
-              versionName '2.0'
+              versionCode 4
+              versionName '4.0'
             }
           }
           EOF
 
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
             <application
               android:theme="@style/AppTheme"
               android:label="Relógio de Vida">
@@ -91,7 +91,6 @@ jobs:
                 <intent-filter>
                   <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
                 </intent-filter>
-
                 <meta-data
                   android:name="android.appwidget.provider"
                   android:resource="@xml/widget_info"/>
@@ -105,10 +104,20 @@ jobs:
           <resources>
             <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
               <item name="android:fontFamily">sans</item>
-              <item name="android:statusBarColor">#080D12</item>
-              <item name="android:navigationBarColor">#080D12</item>
+              <item name="android:statusBarColor">#05070A</item>
+              <item name="android:navigationBarColor">#05070A</item>
             </style>
           </resources>
+          EOF
+
+          cat > app/src/main/res/drawable/widget_bg.xml <<'EOF'
+          <shape xmlns:android="http://schemas.android.com/apk/res/android">
+            <solid android:color="#101820"/>
+            <corners android:radius="22dp"/>
+            <stroke
+              android:width="1dp"
+              android:color="#304550"/>
+          </shape>
           EOF
 
           cat > app/src/main/res/layout/widget.xml <<'EOF'
@@ -118,17 +127,46 @@ jobs:
             android:layout_height="match_parent"
             android:orientation="vertical"
             android:gravity="center"
-            android:padding="10dp"
-            android:background="#080D12">
+            android:padding="12dp"
+            android:background="@drawable/widget_bg">
 
             <TextView
-              android:id="@+id/vida"
+              android:id="@+id/titulo"
               android:layout_width="match_parent"
               android:layout_height="wrap_content"
-              android:gravity="center"
-              android:text="Relógio de Vida"
+              android:text="RELÓGIO DE VIDA"
+              android:textColor="#8FAAB5"
+              android:textSize="11sp"
+              android:textStyle="bold"
+              android:gravity="center"/>
+
+            <TextView
+              android:id="@+id/idade"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:text="CONFIGURE A DATA"
               android:textColor="#FFFFFF"
-              android:textSize="18sp"/>
+              android:textSize="24sp"
+              android:textStyle="bold"
+              android:gravity="center"/>
+
+            <TextView
+              android:id="@+id/dias"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:text="Abra o aplicativo"
+              android:textColor="#42D3E8"
+              android:textSize="13sp"
+              android:gravity="center"/>
+
+            <TextView
+              android:id="@+id/segundos"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:text="para começar"
+              android:textColor="#B8C7CC"
+              android:textSize="11sp"
+              android:gravity="center"/>
 
           </LinearLayout>
           EOF
@@ -137,7 +175,7 @@ jobs:
           <appwidget-provider
             xmlns:android="http://schemas.android.com/apk/res/android"
             android:minWidth="250dp"
-            android:minHeight="80dp"
+            android:minHeight="100dp"
             android:updatePeriodMillis="60000"
             android:initialLayout="@layout/widget"/>
           EOF
@@ -145,56 +183,150 @@ jobs:
           cat > app/src/main/java/com/vida/relogio/MainActivity.java <<'EOF'
           package com.vida.relogio;
 
-          import android.app.Activity;
-          import android.os.Bundle;
+          import android.app.*;
+          import android.os.*;
           import android.graphics.Color;
           import android.view.Gravity;
-          import android.widget.TextView;
+          import android.widget.*;
+          import android.content.*;
           import java.util.Calendar;
 
           public class MainActivity extends Activity {
 
-            TextView t;
+            LinearLayout tela;
+            TextView info;
+            long nascimento;
 
             public void onCreate(Bundle b) {
               super.onCreate(b);
 
-              t = new TextView(this);
-              t.setTextColor(Color.WHITE);
-              t.setTextSize(22);
-              t.setGravity(Gravity.CENTER);
-              t.setBackgroundColor(Color.rgb(8,13,18));
+              nascimento = getSharedPreferences("vida",0)
+                  .getLong("nascimento",0);
 
-              setContentView(t);
+              if(nascimento == 0) configurar();
+              else mostrar();
+            }
+
+            void configurar() {
+
+              tela = new LinearLayout(this);
+              tela.setOrientation(LinearLayout.VERTICAL);
+              tela.setGravity(Gravity.CENTER);
+              tela.setPadding(30,30,30,30);
+              tela.setBackgroundColor(Color.rgb(5,7,10));
+
+              TextView titulo = new TextView(this);
+              titulo.setText("◈  RELÓGIO DE VIDA  ◈");
+              titulo.setTextColor(Color.WHITE);
+              titulo.setTextSize(28);
+              titulo.setGravity(Gravity.CENTER);
+
+              TextView texto = new TextView(this);
+              texto.setText("\nQual é sua data de nascimento?\n");
+              texto.setTextColor(Color.LTGRAY);
+              texto.setTextSize(18);
+              texto.setGravity(Gravity.CENTER);
+
+              Button botao = new Button(this);
+              botao.setText("ESCOLHER DATA");
+
+              tela.addView(titulo);
+              tela.addView(texto);
+              tela.addView(botao);
+              setContentView(tela);
+
+              botao.setOnClickListener(v -> escolher());
+            }
+
+            void escolher() {
+
+              Calendar c = Calendar.getInstance();
+
+              DatePickerDialog d = new DatePickerDialog(
+                this,
+                (view, ano, mes, dia) -> {
+
+                  Calendar data = Calendar.getInstance();
+                  data.set(ano,mes,dia,0,0,0);
+                  data.set(Calendar.MILLISECOND,0);
+
+                  nascimento = data.getTimeInMillis();
+
+                  getSharedPreferences("vida",0)
+                    .edit()
+                    .putLong("nascimento",nascimento)
+                    .apply();
+
+                  mostrar();
+
+                  Intent i = new Intent(
+                    "android.appwidget.action.APPWIDGET_UPDATE");
+                  sendBroadcast(i);
+                },
+                c.get(Calendar.YEAR)-30,
+                c.get(Calendar.MONTH),
+                c.get(Calendar.DAY_OF_MONTH)
+              );
+
+              d.getDatePicker()
+                .setMaxDate(System.currentTimeMillis());
+
+              d.show();
+            }
+
+            void mostrar() {
+
+              tela = new LinearLayout(this);
+              tela.setOrientation(LinearLayout.VERTICAL);
+              tela.setGravity(Gravity.CENTER);
+              tela.setPadding(30,30,30,30);
+              tela.setBackgroundColor(Color.rgb(5,7,10));
+
+              TextView titulo = new TextView(this);
+              titulo.setText("◈  RELÓGIO DE VIDA  ◈");
+              titulo.setTextColor(Color.WHITE);
+              titulo.setTextSize(26);
+              titulo.setGravity(Gravity.CENTER);
+
+              info = new TextView(this);
+              info.setTextColor(Color.WHITE);
+              info.setTextSize(20);
+              info.setGravity(Gravity.CENTER);
+              info.setPadding(0,35,0,0);
+
+              Button alterar = new Button(this);
+              alterar.setText("ALTERAR DATA");
+
+              tela.addView(titulo);
+              tela.addView(info);
+              tela.addView(alterar);
+              setContentView(tela);
+
+              alterar.setOnClickListener(v -> escolher());
+
               atualizar();
             }
 
             void atualizar() {
 
-              Calendar nascimento = Calendar.getInstance();
-              nascimento.set(1991,7,1,0,0,0);
+              long seg =
+                (System.currentTimeMillis()-nascimento)/1000;
 
-              long vida = System.currentTimeMillis()
-                  - nascimento.getTimeInMillis();
+              long anos = seg/31557600;
+              long dias = (seg%31557600)/86400;
+              long horas = (seg%86400)/3600;
+              long min = (seg%3600)/60;
+              long s = seg%60;
 
-              long seg = vida / 1000;
-
-              long anos = seg / 31557600;
-              long dias = (seg % 31557600) / 86400;
-              long horas = (seg % 86400) / 3600;
-              long min = (seg % 3600) / 60;
-              long s = seg % 60;
-
-              t.setText(
-                "RELÓGIO DE VIDA\n\n" +
-                anos + " anos\n" +
-                dias + " dias\n" +
-                horas + " horas\n" +
-                min + " minutos\n" +
-                s + " segundos"
+              info.setText(
+                anos+" ANOS\n\n"+
+                dias+" DIAS\n\n"+
+                horas+" HORAS  "+
+                min+" MIN  "+
+                s+" SEG"
               );
 
-              t.postDelayed(() -> atualizar(),1000);
+              info.postDelayed(() -> atualizar(),1000);
             }
           }
           EOF
@@ -202,11 +334,9 @@ jobs:
           cat > app/src/main/java/com/vida/relogio/VidaWidget.java <<'EOF'
           package com.vida.relogio;
 
-          import android.appwidget.AppWidgetManager;
-          import android.appwidget.AppWidgetProvider;
-          import android.content.Context;
+          import android.appwidget.*;
+          import android.content.*;
           import android.widget.RemoteViews;
-          import java.util.Calendar;
 
           public class VidaWidget extends AppWidgetProvider {
 
@@ -215,29 +345,48 @@ jobs:
                 AppWidgetManager manager,
                 int[] ids) {
 
-              Calendar nascimento = Calendar.getInstance();
-              nascimento.set(1991,7,1,0,0,0);
+              long nascimento =
+                context.getSharedPreferences("vida",0)
+                .getLong("nascimento",0);
 
-              long segundos =
-                  (System.currentTimeMillis()
-                  - nascimento.getTimeInMillis()) / 1000;
+              for(int id:ids) {
 
-              long dias = segundos / 86400;
+                RemoteViews v = new RemoteViews(
+                  context.getPackageName(),
+                  R.layout.widget);
 
-              String texto =
-                  "RELÓGIO DE VIDA\n" +
-                  "35 anos • " + dias + " dias";
+                if(nascimento == 0) {
 
-              for (int id : ids) {
+                  v.setTextViewText(
+                    R.id.idade,"CONFIGURE A DATA");
 
-                RemoteViews v =
-                    new RemoteViews(
-                      context.getPackageName(),
-                      R.layout.widget);
+                  v.setTextViewText(
+                    R.id.dias,"Abra o aplicativo");
 
-                v.setTextViewText(
-                    R.id.vida,
-                    texto);
+                  v.setTextViewText(
+                    R.id.segundos,"para começar");
+
+                } else {
+
+                  long seg =
+                    (System.currentTimeMillis()
+                    - nascimento)/1000;
+
+                  long anos = seg/31557600;
+                  long dias = seg/86400;
+
+                  v.setTextViewText(
+                    R.id.idade,
+                    anos+" ANOS");
+
+                  v.setTextViewText(
+                    R.id.dias,
+                    dias+" DIAS VIVIDOS");
+
+                  v.setTextViewText(
+                    R.id.segundos,
+                    seg+" SEGUNDOS");
+                }
 
                 manager.updateAppWidget(id,v);
               }
@@ -251,5 +400,5 @@ jobs:
       - name: Enviar APK
         uses: actions/upload-artifact@v4
         with:
-          name: Relogio-de-Vida
+          name: Relogio-de-Vida-v4
           path: app/build/outputs/apk/debug/app-debug.apk
