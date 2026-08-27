@@ -3,12 +3,10 @@ name: Criar APK
 
 on:
   workflow_dispatch:
-  push:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -22,8 +20,20 @@ jobs:
           mkdir -p app/src/main/java/com/vida/relogio
 
           cat > settings.gradle <<'EOF'
-          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
-          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
           rootProject.name='RelogioVida'
           include ':app'
           EOF
@@ -35,7 +45,9 @@ jobs:
           EOF
 
           cat > app/build.gradle <<'EOF'
-          plugins { id 'com.android.application' }
+          plugins {
+              id 'com.android.application'
+          }
 
           android {
               namespace 'com.vida.relogio'
@@ -56,7 +68,10 @@ jobs:
               <application
                   android:theme="@android:style/Theme.Material.NoActionBar"
                   android:label="Relógio de Vida">
-                  <activity android:name=".MainActivity" android:exported="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:screenOrientation="portrait"
+                      android:exported="true">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN"/>
                           <category android:name="android.intent.category.LAUNCHER"/>
@@ -69,29 +84,118 @@ jobs:
           cat > app/src/main/java/com/vida/relogio/MainActivity.java <<'EOF'
           package com.vida.relogio;
 
-          import android.app.Activity;
-          import android.os.Bundle;
+          import android.app.*;
+          import android.os.*;
+          import android.content.*;
           import android.graphics.Color;
-          import android.view.Gravity;
-          import android.widget.TextView;
+          import android.view.*;
+          import android.widget.*;
+          import java.util.*;
 
           public class MainActivity extends Activity {
+              TextView info;
+              Calendar nascimento = Calendar.getInstance();
+              final long EXPECTATIVA = 80L * 365 * 24 * 60 * 60 * 1000;
+
               public void onCreate(Bundle b) {
                   super.onCreate(b);
-                  TextView t = new TextView(this);
-                  t.setText("RELÓGIO DE VIDA\n\nData de nascimento");
-                  t.setTextColor(Color.WHITE);
-                  t.setTextSize(24);
-                  t.setGravity(Gravity.CENTER);
-                  t.setBackgroundColor(Color.rgb(8,13,18));
-                  setContentView(t);
+
+                  LinearLayout l = new LinearLayout(this);
+                  l.setOrientation(LinearLayout.VERTICAL);
+                  l.setGravity(Gravity.CENTER);
+                  l.setPadding(30,30,30,30);
+                  l.setBackgroundColor(Color.rgb(8,13,18));
+
+                  TextView titulo = new TextView(this);
+                  titulo.setText("RELÓGIO DE VIDA");
+                  titulo.setTextColor(Color.WHITE);
+                  titulo.setTextSize(30);
+                  titulo.setGravity(Gravity.CENTER);
+
+                  Button data = new Button(this);
+                  data.setText("Escolher data de nascimento");
+
+                  info = new TextView(this);
+                  info.setTextColor(Color.WHITE);
+                  info.setTextSize(18);
+                  info.setGravity(Gravity.CENTER);
+                  info.setPadding(0,30,0,0);
+
+                  l.addView(titulo);
+                  l.addView(data);
+                  l.addView(info);
+                  setContentView(l);
+
+                  long salvo = getPreferences(0).getLong("data",0);
+                  if(salvo > 0) {
+                      nascimento.setTimeInMillis(salvo);
+                      atualizar();
+                  }
+
+                  data.setOnClickListener(v -> escolherData());
+              }
+
+              void escolherData() {
+                  Calendar c = Calendar.getInstance();
+                  DatePickerDialog d = new DatePickerDialog(this,
+                      (view, y, m, day) -> {
+                          nascimento.set(y,m,day,0,0,0);
+                          getPreferences(0).edit()
+                              .putLong("data",nascimento.getTimeInMillis()).apply();
+                          atualizar();
+                      },
+                      nascimento.get(Calendar.YEAR)-30,
+                      nascimento.get(Calendar.MONTH),
+                      nascimento.get(Calendar.DAY_OF_MONTH));
+                  d.getDatePicker().setMaxDate(System.currentTimeMillis());
+                  d.show();
+              }
+
+              void atualizar() {
+                  new Handler().postDelayed(new Runnable() {
+                      public void run() {
+                          long agora = System.currentTimeMillis();
+                          long vivido = agora - nascimento.getTimeInMillis();
+                          long restante = EXPECTATIVA - vivido;
+
+                          if(restante < 0) restante = 0;
+
+                          long seg = vivido / 1000;
+                          long anos = seg / 31557600;
+                          seg %= 31557600;
+                          long dias = seg / 86400;
+                          seg %= 86400;
+                          long horas = seg / 3600;
+                          seg %= 3600;
+                          long min = seg / 60;
+                          long segundos = seg % 60;
+
+                          long r = restante / 1000;
+                          long ra = r / 31557600;
+                          r %= 31557600;
+                          long rd = r / 86400;
+                          r %= 86400;
+                          long rh = r / 3600;
+                          r %= 3600;
+                          long rm = r / 60;
+                          long rs = r % 60;
+
+                          info.setText(
+                              "Você já viveu aproximadamente:\n" +
+                              anos+" anos, "+dias+" dias, "+horas+"h "+min+"min "+segundos+"s\n\n" +
+                              "Até 80 anos, restam aproximadamente:\n" +
+                              ra+" anos, "+rd+" dias, "+rh+"h "+rm+"min "+rs+"s"
+                          );
+
+                          new Handler().postDelayed(this,1000);
+                      }
+                  },0);
               }
           }
           EOF
 
-      - name: Compilar
-        run: |
-          gradle assembleDebug
+          gradle wrapper --gradle-version 8.9
+          ./gradlew assembleDebug
 
       - name: Enviar APK
         uses: actions/upload-artifact@v4
